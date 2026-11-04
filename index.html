@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Ignore Vite HMR WebSocket errors in AI Studio preview per platform environment constraints
+      (function() {
+        const origConsoleError = console.error;
+        console.error = function(...args) {
+          if (args.length > 0) {
+            const first = args[0];
+            const msg = (first instanceof Error ? (first.message || '') : String(first)) + (args[1] ? String(args[1]) : '');
+            if (msg.includes('WebSocket closed without opened') || (msg.includes('[vite]') && msg.includes('WebSocket'))) {
+              return;
+            }
+          }
+          origConsoleError.apply(console, args);
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+          if (e.reason && (e.reason.message?.includes('WebSocket closed without opened') || e.reason.message?.includes('vite-hmr'))) {
+            e.preventDefault();
+          }
+        });
+        window.addEventListener('error', function(e) {
+          if (e.message?.includes('WebSocket closed without opened') || (e.filename && e.filename.includes('@vite/client'))) {
+            e.preventDefault();
+          }
+        });
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>IZA Master UI</title>
+    <meta name="description" content="The Trinitarian Operating System interface for human sovereignty and biophysical telemetry." />
+    <meta property="og:title" content="IZA Master UI" />
+    <meta property="og:description" content="The Trinitarian Operating System interface for human sovereignty and biophysical telemetry." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="IZA" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

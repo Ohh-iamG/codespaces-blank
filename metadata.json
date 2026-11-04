@@ -1,0 +1,11 @@
+{
+  "name": "IZA Master UI",
+  "description": "The Trinitarian Operating System interface for human sovereignty and biophysical telemetry.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

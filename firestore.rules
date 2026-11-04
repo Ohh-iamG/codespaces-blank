@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catchall to eliminate orphaned or shadow access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for User Profiles
+    function isValidUser(data, userId) {
+      return data.uid == userId &&
+        data.email is string &&
+        data.email.size() > 3 &&
+        data.email.size() <= 256 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 512));
+    }
+
+    // Validation Blueprint for Sovereign Memories
+    function isValidMemory(data, userId) {
+      return data.userId == userId &&
+        data.id is string &&
+        data.id.size() > 0 &&
+        data.id.size() <= 128 &&
+        data.content is string &&
+        data.content.size() > 0 &&
+        data.content.size() <= 10000 &&
+        data.kind is string &&
+        data.kind.size() <= 32 &&
+        (!('summary' in data) || (data.summary is string && data.summary.size() <= 1000)) &&
+        (!('source' in data) || (data.source is string && data.source.size() <= 64)) &&
+        (!('salience' in data) || (data.salience is number)) &&
+        (!('pinned' in data) || (data.pinned is bool)) &&
+        (!('isArchived' in data) || (data.isArchived is bool)) &&
+        (!('capturedAt' in data) || (data.capturedAt is string && data.capturedAt.size() <= 64));
+    }
+
+    // Validation Blueprint for Biophysical Telemetry
+    function isValidBiometric(data, userId) {
+      return data.userId == userId &&
+        data.id is string &&
+        data.id.size() > 0 &&
+        data.id.size() <= 128 &&
+        data.hr is number &&
+        (!('stress' in data) || (data.stress is number)) &&
+        (!('orr' in data) || (data.orr is number)) &&
+        (!('teg' in data) || (data.teg is number)) &&
+        (!('teng' in data) || (data.teng is number)) &&
+        data.timestamp is string &&
+        data.timestamp.size() <= 64;
+    }
+
+    // Connection ping testing document
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Sovereign User Root Profile
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId) && incoming().uid == existing().uid;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Sovereign Vault Memories Subcollection
+      match /memories/{memoryId} {
+        allow get: if isOwner(userId) && isValidId(memoryId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming(), userId) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(memoryId);
+      }
+
+      // Biophysical Telemetry Subcollection
+      match /biometrics/{biometricId} {
+        allow get: if isOwner(userId) && isValidId(biometricId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(biometricId) && isValidBiometric(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(biometricId) && isValidBiometric(incoming(), userId) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(biometricId);
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+	"appId": "com.earthi.iza",
+	"appName": "IZA Sovereign Assistant",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"packageClassList": [
+		"PurchasesPlugin"
+	]
+}

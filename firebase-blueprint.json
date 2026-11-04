@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and authentication state in the IZA sovereign vault.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user ID from Firebase Authentication.",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address.",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "maxLength": 128
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar URL.",
+          "maxLength": 512
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of user creation.",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last profile update.",
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Memory": {
+      "title": "Memory",
+      "description": "Sovereign episodic memory or vault note synchronized to Firestore.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the memory item.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the owning user.",
+          "maxLength": 128
+        },
+        "content": {
+          "type": "string",
+          "description": "Primary memory text or transcript.",
+          "maxLength": 10000
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short synthesized summary or key takeaway.",
+          "maxLength": 1000
+        },
+        "kind": {
+          "type": "string",
+          "description": "Type of memory: note, voice, dialogue, event, idea, science.",
+          "enum": ["note", "voice", "dialogue", "event", "idea", "image", "science"],
+          "maxLength": 32
+        },
+        "source": {
+          "type": "string",
+          "description": "Source origin of memory.",
+          "maxLength": 64
+        },
+        "salience": {
+          "type": "number",
+          "description": "Salience score from 0 to 10."
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "Whether memory is pinned in the vault."
+        },
+        "isArchived": {
+          "type": "boolean",
+          "description": "Archive state."
+        },
+        "capturedAt": {
+          "type": "string",
+          "description": "Timestamp when the memory was captured.",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "content", "kind", "capturedAt"]
+    },
+    "Biometric": {
+      "title": "Biometric",
+      "description": "Biophysical telemetry reading recorded in the sovereign vault.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Telemetry snapshot ID.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the owning user.",
+          "maxLength": 128
+        },
+        "hr": {
+          "type": "number",
+          "description": "Heart rate in bpm."
+        },
+        "stress": {
+          "type": "number",
+          "description": "Stress index percentage."
+        },
+        "orr": {
+          "type": "number",
+          "description": "Oxygen recovery rate."
+        },
+        "teg": {
+          "type": "number",
+          "description": "Thermodynamic energy gradient."
+        },
+        "teng": {
+          "type": "number",
+          "description": "Thermal entropy gauge."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of reading.",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "hr", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document isolated to the authenticated user."
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": "Memory",
+      "description": "Episodic sovereign memory notes belonging strictly to the authenticated user."
+    },
+    "/users/{userId}/biometrics/{biometricId}": {
+      "schema": "Biometric",
+      "description": "Biophysical telemetry readings belonging strictly to the authenticated user."
+    }
+  }
+}
