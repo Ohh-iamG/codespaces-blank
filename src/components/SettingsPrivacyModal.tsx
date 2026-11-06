@@ -102,11 +102,11 @@ export function SettingsPrivacyModal({
       if (!res.ok) throw new Error('Account purge failed');
       
       // Clear client storage
-      if (typeof window !== 'undefined' && 'localStorage' in window) {
-        try {
+      try {
+        if (typeof window !== 'undefined' && 'localStorage' in window) {
           window.localStorage.clear();
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       try {
         if (typeof window !== 'undefined' && 'indexedDB' in window) {
           const dbs = await window.indexedDB.databases?.();

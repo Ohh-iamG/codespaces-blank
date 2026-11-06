@@ -66,6 +66,18 @@ import { purchases } from './lib/purchases';
 import { apiFetch } from './lib/api';
 import { auth, signInWithGoogle, testConnection, saveUserProfile, syncMemoryToFirestore, deleteMemoryFromFirestore, logOut } from './lib/firebase';
 
+function safeStorage(): Storage | null {
+  if (typeof window === 'undefined' || !('localStorage' in window)) {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const [time, setTime] = useState(new Date());
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -118,10 +130,8 @@ export default function App() {
   const [universalSearchOpen, setUniversalSearchOpen] = useState(false);
   const [ritualsOpen, setRitualsOpen] = useState(false);
   const [medicalDisclaimerOpen, setMedicalDisclaimerOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('iza_disclaimer_accepted') !== 'true';
-    }
-    return false;
+    const storage = safeStorage();
+    return storage ? storage.getItem('iza_disclaimer_accepted') !== 'true' : false;
   });
   const recognitionRef = React.useRef<any>(null);
 
@@ -386,7 +396,8 @@ export default function App() {
   // Sync Firebase Auth state & verify Firestore database connection
   useEffect(() => {
     purchases.initialize().catch(() => {});
-    const savedDemo = localStorage.getItem('iza_demo_reviewer_session');
+    const storage = safeStorage();
+    const savedDemo = storage?.getItem('iza_demo_reviewer_session');
     if (savedDemo) {
       try {
         setCurrentUser(JSON.parse(savedDemo));
@@ -821,7 +832,7 @@ export default function App() {
               </span>
               <button 
                 onClick={() => {
-                  localStorage.removeItem('iza_demo_reviewer_session');
+                  safeStorage()?.removeItem('iza_demo_reviewer_session');
                   logOut();
                   setCurrentUser(null);
                 }}

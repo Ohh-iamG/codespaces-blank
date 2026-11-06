@@ -4,13 +4,18 @@ class DataStreamAudio {
   private nodes: any[] = [];
 
   start() {
-    if (this.isPlaying) return;
-    this.isPlaying = true;
-    
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (this.isPlaying || typeof window === 'undefined') return;
+    const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtxClass) {
+      return;
     }
-    if (this.ctx.state === 'suspended') {
+
+    this.isPlaying = true;
+
+    if (!this.ctx) {
+      this.ctx = new AudioCtxClass();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
 

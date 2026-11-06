@@ -123,10 +123,19 @@ export function UniversalSearch({
     }
   };
 
-  const handleCopyCitation = (item: UniversalSearchResult) => {
-    navigator.clipboard.writeText(`[Citation: ${item.sourceChunk}]:\n${item.content}`);
-    setCopiedId(item.id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyCitation = async (item: UniversalSearchResult) => {
+    if (!navigator.clipboard?.writeText) {
+      console.warn('Clipboard access unavailable in this browser context.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`[Citation: ${item.sourceChunk}]:\n${item.content}`);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.warn('Failed to copy citation:', err);
+    }
   };
 
   const getDomainBadge = (d: string) => {

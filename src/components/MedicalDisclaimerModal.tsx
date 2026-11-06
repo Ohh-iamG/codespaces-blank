@@ -7,11 +7,30 @@ interface MedicalDisclaimerModalProps {
   onAccept?: () => void;
 }
 
+function safeStorage(): Storage | null {
+  if (typeof window === 'undefined' || !('localStorage' in window)) {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function MedicalDisclaimerModal({ isOpen, onClose, onAccept }: MedicalDisclaimerModalProps) {
   if (!isOpen) return null;
 
   const handleAcknowledge = () => {
-    localStorage.setItem('iza_disclaimer_accepted', 'true');
+    const storage = safeStorage();
+    if (storage) {
+      try {
+        storage.setItem('iza_disclaimer_accepted', 'true');
+      } catch {
+        // Ignore storage write failures in restricted browser contexts.
+      }
+    }
     if (onAccept) onAccept();
     onClose();
   };

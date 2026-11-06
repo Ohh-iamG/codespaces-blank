@@ -132,12 +132,12 @@ export function signInAsDemoReviewer(): { uid: string; email: string; displayNam
     displayName: 'App Store Reviewer (Earthi)',
   };
 
-  if (typeof window !== 'undefined' && 'localStorage' in window) {
-    try {
+  try {
+    if (typeof window !== 'undefined' && 'localStorage' in window) {
       window.localStorage.setItem('iza_demo_reviewer_session', JSON.stringify(demoUser));
-    } catch {
-      // Ignore storage write failures in restricted browser contexts.
     }
+  } catch {
+    // Ignore storage write failures in restricted browser contexts.
   }
 
   return demoUser;

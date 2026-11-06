@@ -69,11 +69,21 @@ export function WebAgentWidget({ onMemoryAnchored, isModal = false, onClose }: W
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!result) return;
-    navigator.clipboard.writeText(`[${result.title}](${result.url})\n\n${result.summary}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!navigator.clipboard?.writeText) {
+      setErrorNotice('Clipboard access is unavailable in this browser context.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`[${result.title}](${result.url})\n\n${result.summary}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.warn('Failed to copy web result:', err);
+      setErrorNotice('Could not copy this result to the clipboard.');
+    }
   };
 
   const content = (

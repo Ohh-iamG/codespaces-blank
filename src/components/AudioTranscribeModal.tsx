@@ -110,11 +110,21 @@ export function AudioTranscribeModal({ isOpen, onClose, onTranscriptReady }: Aud
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!transcript) return;
-    navigator.clipboard.writeText(transcript);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!navigator.clipboard?.writeText) {
+      setErrorMsg('Clipboard access is unavailable in this browser context.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(transcript);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
+      setErrorMsg('Could not copy transcript to clipboard.');
+    }
   };
 
   const handleApply = () => {
