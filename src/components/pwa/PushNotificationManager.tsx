@@ -3,6 +3,10 @@ import { Bell, BellOff, BellRing, Check, AlertCircle, Send, Shield, Pill, HeartP
 import { apiFetch } from '../../lib/api';
 
 function urlBase64ToUint8Array(base64String: string) {
+  if (typeof window === 'undefined' || typeof window.atob !== 'function') {
+    throw new Error('This browser does not support base64 conversion for push subscriptions.');
+  }
+
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);

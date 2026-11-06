@@ -131,7 +131,15 @@ export function signInAsDemoReviewer(): { uid: string; email: string; displayNam
     email: 'test-reviewer@earthi.ltd',
     displayName: 'App Store Reviewer (Earthi)',
   };
-  localStorage.setItem('iza_demo_reviewer_session', JSON.stringify(demoUser));
+
+  if (typeof window !== 'undefined' && 'localStorage' in window) {
+    try {
+      window.localStorage.setItem('iza_demo_reviewer_session', JSON.stringify(demoUser));
+    } catch {
+      // Ignore storage write failures in restricted browser contexts.
+    }
+  }
+
   return demoUser;
 }
 

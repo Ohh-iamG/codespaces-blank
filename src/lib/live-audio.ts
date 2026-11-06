@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+
 /**
  * Live audio & video streaming manager for Gemini 3.8 Live API
  * Designed for mobile phone hardware (iOS Safari, Android Chrome, and desktop).

@@ -64,6 +64,7 @@ import { IzaLifeNav } from './components/IzaLifeNav';
 import { IzaLifeHome } from './components/IzaLifeHome';
 import { purchases } from './lib/purchases';
 import { apiFetch } from './lib/api';
+import { auth, signInWithGoogle, testConnection, saveUserProfile, syncMemoryToFirestore, deleteMemoryFromFirestore, logOut } from './lib/firebase';
 
 export default function App() {
   const [time, setTime] = useState(new Date());
@@ -92,14 +93,8 @@ export default function App() {
   const [recallInsight, setRecallInsight] = useState<{ query: string; answer: string; count: number } | null>(null);
 
   const [secretsUnlocked, setSecretsUnlocked] = useState(false);
-  const [secretsData, setSecretsData] = useState([
-    { id: 1, label: 'Bank PIN', value: '0000' },
-    { id: 2, label: 'Medical Allergy', value: 'Penicillin' }
-  ]);
-  const [circleMembers, setCircleMembers] = useState([
-    { id: 1, name: 'Sam', relation: 'Wife', status: 'SYNCED', statusColor: 'text-emerald-500' },
-    { id: 2, name: 'Tom', relation: 'Mate', status: 'NUDGE: OVERDUE', statusColor: 'text-amber-500' }
-  ]);
+  const [secretsData, setSecretsData] = useState<Array<{ id: number; label: string; value: string }>>([]);
+  const [circleMembers, setCircleMembers] = useState<Array<{ id: number; name: string; relation: string; status: string; statusColor: string }>>([]);
   const [sosActive, setSosActive] = useState(false);
   const [confidantActive, setConfidantActive] = useState(true);
   const [threatActive, setThreatActive] = useState(false);
@@ -174,6 +169,40 @@ export default function App() {
       }
     } catch (e) {
       console.warn('Failed to load pulse', e);
+    }
+  };
+
+  const loadSecrets = async () => {
+    try {
+      const res = await apiFetch('/api/secrets');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setSecretsData(data.map((secret: any) => ({
+          id: Number(secret.id),
+          label: secret.label || 'Unnamed secret',
+          value: secret.value || '**********',
+        })));
+      }
+    } catch (e) {
+      console.warn('Failed to load secrets:', e);
+    }
+  };
+
+  const loadCircleMembers = async () => {
+    try {
+      const res = await apiFetch('/api/circle');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCircleMembers(data.map((member: any) => ({
+          id: Number(member.id),
+          name: member.name || 'Unknown contact',
+          relation: member.relation || member.relationship || 'Trusted',
+          status: member.status || 'SYNCED',
+          statusColor: member.status === 'NUDGE: OVERDUE' ? 'text-amber-500' : 'text-emerald-500',
+        })));
+      }
+    } catch (e) {
+      console.warn('Failed to load circle members:', e);
     }
   };
 
@@ -346,7 +375,6 @@ export default function App() {
     if (isSigningIn) return;
     setIsSigningIn(true);
     try {
-      const { signInWithGoogle } = await import('./lib/firebase.ts');
       await signInWithGoogle();
     } catch {
       // Ignored
@@ -365,19 +393,16 @@ export default function App() {
       } catch (_) {}
     }
 
-    let unsubscribe = () => {};
-    import('./lib/firebase.ts').then(({ auth, testConnection, saveUserProfile }) => {
-      // Test Firestore connection on boot
-      testConnection().then((ok) => {
-        setFirestoreConnected(ok);
-      });
+    // Test Firestore connection on boot
+    testConnection().then((ok) => {
+      setFirestoreConnected(ok);
+    });
 
-      unsubscribe = auth.onAuthStateChanged((user) => {
-        if (user) {
-          setCurrentUser(user);
-          saveUserProfile(user).catch((e) => console.warn('User profile sync notice:', e));
-        }
-      });
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setCurrentUser(user);
+        saveUserProfile(user).catch((e) => console.warn('User profile sync notice:', e));
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -404,6 +429,8 @@ export default function App() {
   useEffect(() => {
     loadMemories();
     fetchDailyPulse();
+    loadSecrets();
+    loadCircleMembers();
   }, []);
 
   const anchorMemory = async (content: string, kind = 'note') => {
@@ -420,15 +447,13 @@ export default function App() {
 
     // Synchronize to Firebase Firestore if user is authenticated
     if (currentUser?.uid) {
-      import('./lib/firebase.ts').then(({ syncMemoryToFirestore }) => {
-        syncMemoryToFirestore(currentUser.uid, {
-          id: String(tempId),
-          content: clean,
-          kind,
-          salience: 0.85,
-          capturedAt: new Date().toISOString()
-        }).catch((e) => console.warn('Firestore memory sync notice:', e));
-      });
+      syncMemoryToFirestore(currentUser.uid, {
+        id: String(tempId),
+        content: clean,
+        kind,
+        salience: 0.85,
+        capturedAt: new Date().toISOString()
+      }).catch((e) => console.warn('Firestore memory sync notice:', e));
     }
 
     try {
@@ -455,9 +480,7 @@ export default function App() {
   const handleDeleteMemory = async (id: number) => {
     setVaultMemories(prev => prev.filter(m => m.id !== id));
     if (currentUser?.uid) {
-      import('./lib/firebase.ts').then(({ deleteMemoryFromFirestore }) => {
-        deleteMemoryFromFirestore(currentUser.uid, String(id)).catch((e) => console.warn('Firestore delete notice:', e));
-      });
+      deleteMemoryFromFirestore(currentUser.uid, String(id)).catch((e) => console.warn('Firestore delete notice:', e));
     }
     try {
       await apiFetch(`/api/memories/${id}`, { method: 'DELETE' });
@@ -557,20 +580,28 @@ export default function App() {
         anchorMemory(contentMatch[1], 'note');
       }
     } else if (cmd.startsWith('iza secret-put')) {
-      const labelMatch = cmd.match(/iza secret-put ["'](.*?)["']/);
-      if (labelMatch && labelMatch[1]) {
-        setSecretsData(prev => [
-          ...prev,
-          { id: Date.now(), label: labelMatch[1], value: '**********' }
-        ]);
+      const match = cmd.match(/iza secret-put\s+["']([^"']+)["']\s+["']([^"']+)["']/);
+      if (match) {
+        const [, label, value] = match;
+        apiFetch('/api/secrets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label, value })
+        }).then(async () => {
+          await loadSecrets();
+        }).catch((err) => console.warn('Secret save failed:', err));
       }
     } else if (cmd.startsWith('iza circle-add')) {
-      const nameMatch = cmd.match(/iza circle-add ["'](.*?)["']/);
-      if (nameMatch && nameMatch[1]) {
-        setCircleMembers(prev => [
-          ...prev,
-          { id: Date.now(), name: nameMatch[1], relation: 'Trusted', status: 'SYNCED', statusColor: 'text-emerald-500' }
-        ]);
+      const match = cmd.match(/iza circle-add\s+["']([^"']+)["']\s+["']([^"']+)["']/);
+      if (match) {
+        const [, name, relation] = match;
+        apiFetch('/api/circle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, relation })
+        }).then(async () => {
+          await loadCircleMembers();
+        }).catch((err) => console.warn('Circle save failed:', err));
       }
     } else if (cmd.startsWith('iza sos')) {
       setSosActive(true);
@@ -791,7 +822,7 @@ export default function App() {
               <button 
                 onClick={() => {
                   localStorage.removeItem('iza_demo_reviewer_session');
-                  import('./lib/firebase.ts').then(({ logOut }) => logOut());
+                  logOut();
                   setCurrentUser(null);
                 }}
                 className="text-slate-500 hover:text-slate-300 text-[9px] underline ml-1 cursor-pointer"

@@ -1,271 +1,179 @@
-# IZA OS — Complete Build Cheat Sheet & Architectural Reference
+# IZA OS — Repo-Accurate Architecture Snapshot
 
-> **Trinitarian Operating System for Human Sovereignty, Biophysical Telemetry, and Episodic Memory**
-
----
-
-## 1. System Overview & Trinitarian Architecture
-
-IZA operates across three closed sovereign loops designed to protect cognitive sovereignty, harvest ambient energy, and provide un-rewritable personal continuity:
-
-```
-                          ┌─────────────────────────────────────┐
-                          │            IZA MASTER UI            │
-                          │   Human Sovereignty Control Center  │
-                          └──────────────────┬──────────────────┘
-                                             │
-        ┌────────────────────────────────────┼────────────────────────────────────┐
-        ▼                                    ▼                                    ▼
- ┌───────────────┐                    ┌──────────────┐                    ┌───────────────┐
- │   LOOP 1:     │                    │   LOOP 2:    │                    │   LOOP 3:     │
- │ Internal Loop │                    │ Ambient Loop │                    │Execution Loop │
- └───────┬───────┘                    └──────┬───────┘                    └───────┬───────┘
-         │                                   │                                    │
-  Biophysical Engine                  Interpersonal Zen                   Sovereign Vault &
-  • ORR Oxygen Reduction              • Tone profiling                    • 6-table relational
-  • TEG Thermoelectric                • Narrative defense                   Postgres + pgvector
-  • TENG Kinetic                      • Integrity warning                 • Continuity secrets
-  • Live telemetry (BPM,              • Audio telemetry stream            • Trusted circle &
-    power, stress)                                                          emergency SOS
-```
+> This version reflects what is actually implemented in this workspace, not the more idealized product vision.
 
 ---
 
-## 2. Infrastructure & Environment Specifications
+## 1. What this project really is
 
-| Component | Technology | Configuration / Port |
-|---|---|---|
-| **Frontend Framework** | React 19 + TypeScript + Vite | Port `3000` (Mounted via Express `vite.middlewares`) |
-| **Styling** | Tailwind CSS v4 (`@tailwindcss/vite`) | Dark industrial palette (`#020617` / `#0f172a`) |
-| **Backend Server** | Node.js + Express + `ws` (WebSockets) | `server.ts` listening on `0.0.0.0:3000` |
-| **Relational Database** | PostgreSQL 16 on Google Cloud SQL | Region: `asia-southeast1`, Instance: `ai-studio-a9c88bb8` |
-| **Vector Engine** | `pgvector` extension | `vector(768)` embeddings for semantic recall |
-| **AI Voice Engine** | Gemini 3.8 Live API (`gemini-3.8-live`) | Low-latency duplex audio (16kHz in / 24kHz out, Voice: `Zephyr`) |
-| **AI Confidant Engine** | Gemini 3.8 Flash (`gemini-3.8-flash`) | De-escalation & narrative protection prompt |
-| **Authentication** | Firebase Auth (Google Sign-In) | Client-side popup + token verification |
+This app is a full-stack personal intelligence dashboard built with React, Express, Firebase Auth, PostgreSQL, and Gemini-based AI features.
+
+The product intent is clear: a personal memory vault, confidant chat, daily pulse, knowledge graph, and live voice interaction layer. The codebase implements those concepts in a practical, prototype-friendly way.
 
 ---
 
-## 3. Database Schema & Vector Indexing (Phase 0)
+## 2. Runtime architecture
 
-All persistent tables are defined in PostgreSQL with `CREATE EXTENSION IF NOT EXISTS vector;`:
+The app is structured as:
 
-```sql
--- 1. Atomic Memory Table
-CREATE TABLE IF NOT EXISTS memory (
-  id BIGSERIAL PRIMARY KEY,
-  content TEXT NOT NULL,
-  kind VARCHAR(32) NOT NULL DEFAULT 'note', -- 'note' | 'convo' | 'voice' | 'link' | 'decision'
-  salience REAL NOT NULL DEFAULT 0.5,        -- Priority weight: 0.0 to 1.0
-  embedding vector(768),                     -- 768-dimensional semantic embedding
-  captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+- Frontend: React 19 + TypeScript + Vite
+- Backend: Node.js + Express + WebSockets
+- Database: PostgreSQL via Drizzle ORM
+- Auth: Firebase Auth
+- AI: Google Gemini models accessed through the official SDK
+- PWA support: service worker / push subscription support
+- Mobile shell: Capacitor for Android and iOS
 
-CREATE INDEX IF NOT EXISTS idx_memory_captured_at ON memory(captured_at DESC);
-CREATE INDEX IF NOT EXISTS idx_memory_kind ON memory(kind);
-
--- 2. Durable Real-World Entities
-CREATE TABLE IF NOT EXISTS entity (
-  id BIGSERIAL PRIMARY KEY,
-  canonical_name VARCHAR(255) NOT NULL UNIQUE,
-  entity_type VARCHAR(64) NOT NULL DEFAULT 'person', -- 'person' | 'place' | 'concept' | 'org'
-  aliases TEXT[] DEFAULT '{}',
-  notes TEXT,
-  embedding vector(768),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 3. Knowledge Graph Links
-CREATE TABLE IF NOT EXISTS link (
-  id BIGSERIAL PRIMARY KEY,
-  source_type VARCHAR(32) NOT NULL, -- 'memory' | 'entity'
-  source_id BIGINT NOT NULL,
-  target_type VARCHAR(32) NOT NULL,
-  target_id BIGINT NOT NULL,
-  relation VARCHAR(64) NOT NULL,    -- 'mentions' | 'caused' | 'supports' | 'contradicts'
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 4. Media & Binary Attachments
-CREATE TABLE IF NOT EXISTS attachment (
-  id BIGSERIAL PRIMARY KEY,
-  memory_id BIGINT REFERENCES memory(id) ON DELETE CASCADE,
-  mime_type VARCHAR(128) NOT NULL,
-  file_path TEXT NOT NULL,
-  file_size BIGINT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 5. The Continuity Vault (Strictly Isolated, NEVER Embedded)
-CREATE TABLE IF NOT EXISTS secret (
-  id BIGSERIAL PRIMARY KEY,
-  label VARCHAR(128) NOT NULL,
-  ciphertext TEXT NOT NULL,         -- libsodium SecretBox / AES-GCM ciphertext
-  nonce VARCHAR(64) NOT NULL,       -- Cryptographic nonce
-  salt VARCHAR(64) NOT NULL,        -- Argon2id salt
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 6. Trusted Circle & Safety Heartbeats
-CREATE TABLE IF NOT EXISTS circle_member (
-  id BIGSERIAL PRIMARY KEY,
-  name VARCHAR(128) NOT NULL,
-  relationship VARCHAR(64) NOT NULL,
-  contact_info TEXT,
-  max_days_between_contact INT DEFAULT 7,
-  last_contact_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS checkin_log (
-  id BIGSERIAL PRIMARY KEY,
-  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  notes TEXT
-);
-
--- 7. Hybrid Recall Function (Semantic + Recency Decay + Salience)
-CREATE OR REPLACE FUNCTION recall(
-  query_embedding vector(768),
-  match_limit INT DEFAULT 10,
-  w_sim REAL DEFAULT 0.60,
-  w_rec REAL DEFAULT 0.25,
-  w_sal REAL DEFAULT 0.15
-)
-RETURNS TABLE (
-  id BIGINT,
-  content TEXT,
-  kind VARCHAR(32),
-  salience REAL,
-  score REAL,
-  captured_at TIMESTAMPTZ
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    m.id,
-    m.content,
-    m.kind,
-    m.salience,
-    (
-      w_sim * (1 - (m.embedding <=> query_embedding)) +
-      w_rec * EXP(-EXTRACT(EPOCH FROM (NOW() - m.captured_at)) / (86400.0 * 180.0)) +
-      w_sal * m.salience
-    )::REAL AS score,
-    m.captured_at
-  FROM memory m
-  WHERE m.embedding IS NOT NULL
-  ORDER BY score DESC
-  LIMIT match_limit;
-END;
-$$ LANGUAGE plpgsql;
-```
+The main runtime entry is [server.ts](server.ts), which boots the API server and WebSocket upgrade routing.
 
 ---
 
-## 4. CLI Command Dictionary
+## 3. Key implementation facts
 
-The interactive terminal input accepts native IZA commands:
+### Frontend
+The UI is built in [src/App.tsx](src/App.tsx) and includes:
 
-| Command | Action | Example |
-|---|---|---|
-| `iza capture "<text>"` | Stores raw observation/memory into Cloud SQL with timestamp | `iza capture "Dave mentioned post-hole digger for boundary fence"` |
-| `iza secret-put "<label>" "<text>"` | Stores locked secret into Continuity Vault | `iza secret-put "Bank PIN" "9482"` |
-| `iza circle-add "<name>" "<rel>"` | Registers trusted human ally to circle | `iza circle-add "Sarah Chen" "Spouse"` |
-| `iza talk` / `iza confidant` | Opens the Gemini 3.8 Flash de-escalation chat | `iza talk` |
-| `iza listen` / `iza voice` | Launches full-duplex Gemini 3.8 Live voice modal | `iza voice` |
-| `iza enrich` | Triggers proactive memory synthesis & entity graph extraction | `iza enrich` |
-| `iza entities` / `iza graph` | Opens the Knowledge Graph & Entity Timeline Drawer | `iza graph` |
-| `iza attach` / `iza photo` | Opens the Multi-Modal Visual Ingestion drop-zone | `iza attach` |
-| `iza recall "<query>"` | Filters and recalls memories matching a semantic or keyword search | `iza recall "dose he owe me anything"` |
-| `iza delete-search "<q>"` | Deletes all memories matching keyword from Cloud SQL | `iza delete-search "dose he owe me"` |
-| `iza forget "<q>"` | Synonym for delete-search | `iza forget "with him."` |
-| `iza checkin "<note>"` | Records a daily heartbeat & wellness log | `iza checkin "Feeling grounded and focused"` |
-| `iza sync` | Manually flushes local IndexedDB offline cache to Cloud SQL | `iza sync` |
-| `iza sos` / `iza emergency` | Triggers SOS emergency broadcast & override | `iza sos` |
-| `iza purge` | Neutralizes external narrative threats and clears alerts | `iza purge` |
+- Daily Pulse briefing header
+- Internal Loop / Ambient Loop / Execution-oriented dashboard sections
+- memory vault display
+- knowledge graph / entity browser
+- confidant chat panel
+- live voice modal flow
+- upload / enrichment controls
 
----
+### Backend
+The server in [server.ts](server.ts) includes:
 
-## 5. Gemini 3.8 Live API Audio & WebSocket Protocol
+- Firebase auth enforcement for most /api routes
+- Express JSON handling
+- WebSocket upgrades for /live
+- Gemini generation calls with retry/fallback model logic
+- push notification handling
+- file upload support with multer
+- memory storage and API endpoints
 
-Bidirectional voice streaming operates over WebSocket at `/live`:
+### Database
+The schema in [src/db/schema.ts](src/db/schema.ts) defines the actual persisted entities:
 
-```
- [User Microphone] ──> (16kHz PCM 16-bit LE) ──> Base64 ──> WebSocket (/live)
-                                                                    │
-                                                                    ▼
-                                                            Gemini Live API
-                                                           (gemini-3.8-live)
-                                                                    │
-                                                                    ▼
- [Audio Output]   <── Gapless Scheduling <── 24kHz PCM <── WebSocket (/live)
-```
+- users
+- memory
+- entity
+- link
+- attachment
+- daily_pulse
+- medication
+- checkin
+- secret
+- circle_member
+- checkin_log
 
-### Audio Client & Sentiment Telemetry Specifications
-- **Input:** `ScriptProcessorNode` capturing 2048-sample frames (~128ms) at **16,000 Hz**, converted from 32-bit Float to 16-bit Signed Little-Endian Integer (`pcm;rate=16000`).
-- **Output:** 24,000 Hz mono PCM decoded from Base64 into `AudioBuffer` and played via `AudioBufferSourceNode` with gapless start scheduling.
-- **Transcripts:** Real-time dual streams: `inputTranscript` (user thought) and `outputTranscript` (IZA answer).
-- **Voice Sentiment Tagging:** Computes spectral zero-crossing rate and RMS energy in real time, determining `stress_index` (1..10) and inferred `tone` (`"calm"`, `"focused"`, `"strained"`, `"elevated"`).
-- **Ambient Hotword ("Hey IZA"):** Uses local browser speech recognition to detect "Hey IZA" hands-free and activate the live audio session.
-- **Daily Pulse Grounding:** On every session connection, IZA fetches the last 24 hours of check-ins, recent memories, and high-salience priorities, injecting a dynamic Daily Pulse directly into her system instructions.
+The data access layer is in [src/db/users.ts](src/db/users.ts).
 
 ---
 
-## 6. Server REST Endpoints (`server.ts`)
+## 4. Actual database model
 
-| Route | Method | Body / Query | Description |
-|---|---|---|---|
-| `/api/gemini/chat` | `POST` | `{ message: string, history: Array }` | De-escalation & tactical advice via `gemini-3.8-flash` with Daily Pulse |
-| `/api/memories` | `GET` | `?limit=50` | Retrieves latest episodic memories from Cloud SQL |
-| `/api/memories` | `POST` | `{ content, kind, salience }` | Inserts new memory record into PostgreSQL |
-| `/api/memories/search` | `GET` | `?q=query` | Searches memories by text/summary keyword |
-| `/api/memories/search` | `DELETE` | `?q=query` | Deletes all memories matching keyword from Cloud SQL |
-| `/api/memories/:id` | `DELETE` | — | Deletes a single memory record safely |
-| `/api/memories/enrich` | `POST` | — | Proactively synthesizes un-enriched memories, extracts summaries & entities |
-| `/api/attachments` | `POST` | `{ fileName, mimeType, fileData, note }` | Multi-modal visual ingestion (photos, sketches, schematics) |
-| `/api/entities` | `GET` | — | Retrieves all durable entities (people, places, projects, tools) |
-| `/api/entities/:id/timeline` | `GET` | — | Returns complete chronological timeline of memories linked to an entity |
-| `/api/memories/batch` | `POST` | `{ items: Array }` | Flushes offline IndexedDB memories to Cloud SQL |
-| `/api/checkins` | `POST` | `{ note: string }` | Records daily heartbeat log |
-| `/api/circle` | `GET` | — | Retrieves all trusted circle contacts |
-| `/api/secrets` | `GET` | — | Retrieves list of secret labels (ciphertexts protected) |
+The project stores a practical memory graph rather than a polished conceptual schema alone.
+
+Important tables include:
+
+- memory: content, summary, kind, salience, source, pinned, embedding, meta, timestamps
+- entity: name, entity type, aliases, notes, embedding, metadata
+- link: relationships between memory and entity
+- attachment: file path, MIME type, OCR text, visual summary, embedding
+- secret: encrypted secret payload with salt and nonce
+- checkin: daily heartbeat notes
+- circle_member: trusted contact metadata
+
+This is the real persisted structure used by the app.
 
 ---
 
-## 7. Key Files & Project Layout
+## 5. Auth and security model
 
-```
-├── server.ts                    # Full-stack Node/Express server + WebSocket /live bridge
-├── index.html                   # HTML entry point with synchronized metadata & title
-├── metadata.json                # AI Studio manifest (permissions: ["microphone"], server Gemini)
-├── package.json                 # Dependencies (React 19, @google/genai, drizzle-orm, pg, ws)
-├── schema.sql                   # Raw PostgreSQL Phase 0 DDL & recall() function
-├── src/
-│   ├── App.tsx                  # Master UI dashboard (Internal, Ambient, Execution loops)
-│   ├── main.tsx                 # React DOM bootstrap
-│   ├── db/
-│   │   ├── schema.ts            # Drizzle ORM table definitions
-│   │   ├── index.ts             # Connection pool & Drizzle client
-│   │   ├── users.ts             # Cloud SQL CRUD helper functions
-│   │   └── drizzle.config.ts    # Drizzle Kit configuration
-│   ├── lib/
-│   │   ├── live-audio.ts        # Gemini 3.8 Live API WebSocket client & PCM audio pipeline
-│   │   ├── firebase.ts          # Firebase Auth client (Google Sign-In with popup handling)
-│   │   └── firebase-admin.ts    # Firebase Admin token verification
-│   ├── components/
-│   │   └── LiveVoiceModal.tsx   # Duplex voice conversation modal with visualizer orb
-│   └── middleware/
-│       └── auth.ts              # Bearer token authentication middleware
-```
+Most /api routes are gated by Firebase token validation.
+
+The middleware in [src/middleware/auth.ts](src/middleware/auth.ts) is used to verify tokens before access to protected endpoints.
+
+The live voice route is special: it accepts a Firebase ID token via the WebSocket query string parameter ?token=... and verifies it before allowing the /live connection.
+
+This is the real runtime security pattern in the repo.
 
 ---
 
-## 8. Maintenance & Runbook Commands
+## 6. Gemini usage
 
-- **Start Dev Server:** `npm run dev` (Runs `tsx server.ts` on port 3000)
-- **Compile & Typecheck:** `npm run build`
-- **Lint Codebase:** `npm run lint`
-- **Check Dev Server Status:** `curl -I http://localhost:3000/`
-- **Check Cloud SQL Connection:** `curl -s http://localhost:3000/api/memories`
-- **Restart Development Server:** Via AI Studio restart tool or `restart_dev_server`
+The code does not use a single hard-coded model path everywhere. Instead, it uses resilient generation logic in [server.ts](server.ts) that tries multiple models and falls back gracefully when quota or service issues occur.
+
+The main patterns are:
+
+- chat generation via /api/gemini/chat
+- memory enrichment via the app’s synthesis flow
+- live voice streaming via WebSocket and Gemini live audio interfaces
+
+The live audio client is implemented in [src/lib/live-audio.ts](src/lib/live-audio.ts).
+
+---
+
+## 7. API surface that exists in the repo
+
+These endpoints are actually present or clearly implemented in the codebase:
+
+| Route | Purpose |
+|---|---|
+| /api/gemini/chat | AI chat assistant interaction |
+| /api/memories | list or insert memories |
+| /api/memories/search | keyword lookup and delete by query |
+| /api/memories/:id | delete a memory |
+| /api/memories/enrich | enrich / synthesize memories |
+| /api/attachments | store uploaded file metadata |
+| /api/entities | list durable entities |
+| /api/entities/:id/timeline | timeline for an entity |
+| /api/checkins | create check-in log |
+| /api/circle | list trusted circle members |
+| /api/secrets | secret listing flow |
+| /live | WebSocket live audio bridge |
+
+---
+
+## 8. Build and run commands
+
+From [package.json](package.json), the practical commands are:
+
+- npm run dev
+- npm run build
+- npm run start
+- npm run lint
+- npm run cap:build
+- npm run cap:sync
+
+The project also supports Android/iOS builds via Capacitor.
+
+---
+
+## 9. What is accurate vs aspirational
+
+### Accurate
+- This is a multi-feature personal AI assistant dashboard
+- It uses Firebase auth, Postgres, and Gemini APIs
+- It has memory, entities, check-ins, secrets, and live voice
+- It has a three-loop dashboard experience and a daily pulse concept
+
+### Aspirational or idealized
+- The “Trinitarian Operating System” language is more of a product mythos than a literal code architecture
+- The doc’s exact SQL schema is a conceptual version, not the exact runtime schema used by Drizzle
+- Some model references are versioned more precisely than the code’s fallback logic
+
+---
+
+## 10. Bottom line
+
+This repo is a real, working prototype of a personal sovereign memory system with AI assistance, not just a diagram or a mock app.
+
+It matches the project’s intent, but the honest version is:
+
+- real app, real stack, real functionality
+- strong product vision
+- slightly more polished design language than the exact implementation
+
+This is the repo-accurate interpretation of IZA OS.

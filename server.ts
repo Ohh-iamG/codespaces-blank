@@ -525,6 +525,18 @@ app.get('/api/circle', async (_req, res) => {
   }
 });
 
+app.post('/api/circle', async (req, res) => {
+  try {
+    const { name, relation } = req.body || {};
+    const { addCircleMember } = await import('./src/db/users.ts');
+    const member = await addCircleMember(name, relation || 'Trusted');
+    res.json({ success: true, member });
+  } catch (err: any) {
+    console.error('Error adding circle member:', err);
+    res.status(500).json({ error: err.message || 'Database error' });
+  }
+});
+
 app.get('/api/secrets', async (_req, res) => {
   try {
     const { getSecrets } = await import('./src/db/users.ts');
@@ -532,6 +544,18 @@ app.get('/api/secrets', async (_req, res) => {
     res.json(secrets);
   } catch (err: any) {
     console.error('Error fetching secrets from Cloud SQL:', err);
+    res.status(500).json({ error: err.message || 'Database error' });
+  }
+});
+
+app.post('/api/secrets', async (req, res) => {
+  try {
+    const { label, value } = req.body || {};
+    const { insertSecret } = await import('./src/db/users.ts');
+    const secretRecord = await insertSecret(label, value);
+    res.json({ success: true, secret: secretRecord });
+  } catch (err: any) {
+    console.error('Error storing secret:', err);
     res.status(500).json({ error: err.message || 'Database error' });
   }
 });

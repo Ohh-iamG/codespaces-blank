@@ -102,13 +102,21 @@ export function SettingsPrivacyModal({
       if (!res.ok) throw new Error('Account purge failed');
       
       // Clear client storage
-      localStorage.clear();
+      if (typeof window !== 'undefined' && 'localStorage' in window) {
+        try {
+          window.localStorage.clear();
+        } catch (_) {}
+      }
       try {
-        const dbs = await window.indexedDB.databases?.();
-        if (dbs) {
-          dbs.forEach((db) => {
-            if (db.name) window.indexedDB.deleteDatabase(db.name);
-          });
+        if (typeof window !== 'undefined' && 'indexedDB' in window) {
+          const dbs = await window.indexedDB.databases?.();
+          if (dbs) {
+            dbs.forEach((db) => {
+              if (db.name && typeof window !== 'undefined' && 'indexedDB' in window) {
+                window.indexedDB.deleteDatabase(db.name);
+              }
+            });
+          }
         }
       } catch (_) {}
 

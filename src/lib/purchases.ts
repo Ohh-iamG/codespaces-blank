@@ -12,6 +12,18 @@ export interface SubscriptionState {
 
 const STORAGE_KEY_PRO_MOCK = 'iza_sovereign_pro_override';
 
+function safeStorage(): Storage | null {
+  if (typeof window === 'undefined' || !('localStorage' in window)) {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export class PurchasesManager {
   private static instance: PurchasesManager;
   private isConfigured = false;
@@ -84,11 +96,13 @@ export class PurchasesManager {
     }
 
     // Web / local override fallback
-    const localOverride = localStorage.getItem(STORAGE_KEY_PRO_MOCK) === 'true';
+    const storage = safeStorage();
+    const localOverride = storage ? storage.getItem(STORAGE_KEY_PRO_MOCK) === 'true' : false;
+    const isPro = localOverride;
     return {
-      isPro: localOverride || true, // Default open for full sovereign inspection
-      tier: (localOverride || true) ? 'sovereign_pro' : 'free',
-      activeEntitlements: (localOverride || true) ? ['pro_sovereign'] : [],
+      isPro,
+      tier: isPro ? 'sovereign_pro' : 'free',
+      activeEntitlements: isPro ? ['pro_sovereign'] : [],
       expirationDate: null,
       isNative: false,
       configured: true,
@@ -121,7 +135,10 @@ export class PurchasesManager {
     }
 
     // Web simulation
-    localStorage.setItem(STORAGE_KEY_PRO_MOCK, 'true');
+    const storage = safeStorage();
+    if (storage) {
+      storage.setItem(STORAGE_KEY_PRO_MOCK, 'true');
+    }
     return true;
   }
 
@@ -140,7 +157,10 @@ export class PurchasesManager {
       }
     }
 
-    localStorage.setItem(STORAGE_KEY_PRO_MOCK, 'true');
+    const storage = safeStorage();
+    if (storage) {
+      storage.setItem(STORAGE_KEY_PRO_MOCK, 'true');
+    }
     return true;
   }
 }

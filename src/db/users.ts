@@ -1,6 +1,41 @@
+import crypto from 'crypto';
 import { db } from './index.ts';
 import { users, memory, secret, circleMember, entity, link, attachment, checkinLog } from './schema.ts';
 import { eq, desc, ilike, sql } from 'drizzle-orm';
+
+function deriveVaultKey(salt: string) {
+  return crypto.createHash('sha256').update(`${process.env.IZA_SECRET_KEY || 'iza-vault-default'}:${salt}`).digest();
+}
+
+function encryptSecretValue(value: string) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const nonce = crypto.randomBytes(12);
+  const key = deriveVaultKey(salt);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, nonce);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return {
+    ciphertext: Buffer.concat([encrypted, tag]).toString('hex'),
+    nonce: nonce.toString('hex'),
+    salt,
+  };
+}
+
+function decryptSecretValue(row: { ciphertext: string; nonce: string; salt: string }) {
+  try {
+    const key = deriveVaultKey(row.salt);
+    const raw = Buffer.from(row.ciphertext, 'hex');
+    const tag = raw.subarray(raw.length - 16);
+    const encrypted = raw.subarray(0, raw.length - 16);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(row.nonce, 'hex'));
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  } catch (error) {
+    console.warn('Secret decrypt warning:', error);
+    return '**********';
+  }
+}
 
 export async function getOrCreateUser(uid: string, email: string) {
   try {
@@ -299,10 +334,49 @@ export async function insertCheckin(note = 'Heartbeat verified') {
 
 export async function getSecrets() {
   try {
-    return await db.select().from(secret).orderBy(desc(secret.createdAt));
+    const rows = await db.select().from(secret).orderBy(desc(secret.createdAt));
+    return rows.map((row) => ({
+      ...row,
+      value: decryptSecretValue(row),
+    }));
   } catch (error) {
     console.error('getSecrets error:', error);
     throw new Error('Failed to fetch secrets.', { cause: error });
+  }
+}
+
+export async function insertSecret(label: string, value: string) {
+  try {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel || !value) {
+      throw new Error('Secret label and value are required.');
+    }
+    const encrypted = encryptSecretValue(value);
+    const result = await db.insert(secret)
+      .values({
+        label: trimmedLabel,
+        ciphertext: encrypted.ciphertext,
+        salt: encrypted.salt,
+        nonce: encrypted.nonce,
+      })
+      .onConflictDoUpdate({
+        target: secret.label,
+        set: {
+          ciphertext: encrypted.ciphertext,
+          salt: encrypted.salt,
+          nonce: encrypted.nonce,
+          createdAt: new Date(),
+        },
+      })
+      .returning();
+
+    return {
+      ...result[0],
+      value,
+    };
+  } catch (error) {
+    console.error('insertSecret error:', error);
+    throw new Error('Failed to store secret.', { cause: error });
   }
 }
 
@@ -312,6 +386,29 @@ export async function getCircleMembers() {
   } catch (error) {
     console.error('getCircleMembers error:', error);
     throw new Error('Failed to fetch circle members.', { cause: error });
+  }
+}
+
+export async function addCircleMember(name: string, relation = 'Trusted') {
+  try {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Circle member name is required.');
+    }
+
+    const result = await db.insert(circleMember)
+      .values({
+        name: trimmedName,
+        relation,
+        status: 'SYNCED',
+        lastContactAt: new Date(),
+      })
+      .returning();
+
+    return result[0];
+  } catch (error) {
+    console.error('addCircleMember error:', error);
+    throw new Error('Failed to add circle member.', { cause: error });
   }
 }
 
